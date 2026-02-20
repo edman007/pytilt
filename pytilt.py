@@ -30,32 +30,29 @@ def distinct(objects):
     return unique
 
 
-def to_celsius(fahrenheit):
-    return round((fahrenheit - 32.0) / 1.8, 2)
-
-
 def monitor_tilt():
     sender = Sender()
     while True:
         beacons = distinct(blescan.parse_events(sock, 10))
         for beacon in beacons:
             if beacon['uuid'] in TILTS.keys():
+                print(beacon)
                 sender.add_data({
                     'color': TILTS[beacon['uuid']],
                     'timestamp': datetime.datetime.now().isoformat(),
-                    'temp': to_celsius(beacon['major']),
-                    'gravity': beacon['minor']
+                    'temp': beacon['major'],
+                    'gravity': beacon['minor']/1000
                 })
-        time.sleep(10)
+        time.sleep(1)
 
 
 if __name__ == '__main__':
     dev_id = 0
     try:
         sock = bluez.hci_open_dev(dev_id)
-        print 'Starting pytilt logger'
+        print ('Starting pytilt logger')
     except:
-        print 'error accessing bluetooth device...'
+        print ('error accessing bluetooth device...')
         sys.exit(1)
 
     blescan.hci_le_set_scan_parameters(sock)

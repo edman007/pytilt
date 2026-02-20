@@ -32,24 +32,22 @@ ADV_SCAN_RSP = 0x04
 
 
 def returnnumberpacket(pkt):
-    integer = 0
-    multiple = 256
-    for c in pkt:
-        integer += struct.unpack('B', c)[0] * multiple
-        multiple = 1
-    return integer
+    if (len(pkt) == 2):
+        return int(struct.unpack('>H', pkt)[0])
+    if (len(pkt) == 1):
+        return int(struct.unpack('b', pkt)[0])
+    print(pkt.hex())
+    print('unknown pkt size' + str(len(pkt)))
+    return 0
 
 
 def returnstringpacket(pkt):
-    string = ''
-    for c in pkt:
-        string += '%02x' % struct.unpack('B', c)[0]
-    return string
+    return pkt.hex()
 
 
 def printpacket(pkt):
     for c in pkt:
-        sys.stdout.write('%02x ' % struct.unpack('B', c)[0])
+        sys.stdout.write('%02x ' % struct.unpack('B', bytes(c)[0:1])[0])
 
 
 def get_packed_bdaddr(bdaddr_string):
@@ -87,8 +85,7 @@ def hci_le_set_scan_parameters(sock):
 
 
 def parse_events(sock, loop_count=100):
-    old_filter = sock.getsockopt(bluez.SOL_HCI, bluez.HCI_FILTER, 14)
-
+    old_filter = sock.getsockopt(bluez.SOL_HCI, bluez.HCI_FILTER, 16)
     # perform a device inquiry on bluetooth device #0
     # The inquiry should last 8 * 1.28 = 10.24 seconds
     # before the inquiry is performed, bluez should flush its cache of
@@ -100,22 +97,29 @@ def parse_events(sock, loop_count=100):
     beacons = []
     for i in range(0, loop_count):
         pkt = sock.recv(255)
-        ptype, event, plen = struct.unpack('BBB', pkt[:3])
-
+        # print(pkt.hex())
+        # 043e2a0201030 11c15ce68a6e91e020104 1a ff4c 000215 a495bb70c5b14b44b5121370f02d74de 003a 03fb c5bc
+        # 043e2a0201030 028679978d2b01e020106 1a ff4c 000215 54616130db3a50e4bd5b485627a7331c 0000 0000 c59c
+        ptype, event, plen = struct.unpack('BBB', bytes(pkt[:3]))
         if event == LE_META_EVENT:
-            subevent, = struct.unpack('B', pkt[3])
+            subevent, = struct.unpack('B', bytes(pkt[3:4]))
             pkt = pkt[4:]
             if subevent == EVT_LE_CONN_COMPLETE:
                 le_handle_connection_complete(pkt)
+                print('close')
             elif subevent == EVT_LE_ADVERTISING_REPORT:
-                num_reports = struct.unpack('B', pkt[0])[0]
+                raw_report = struct.unpack('B', bytes(pkt[0:1]))
+                num_reports = raw_report[0]
                 report_pkt_offset = 0
                 for i in range(0, num_reports):
                     beacons.append({
+                        'raw': pkt.hex(),
                         'uuid': returnstringpacket(pkt[report_pkt_offset - 22: report_pkt_offset - 6]),
                         'minor': returnnumberpacket(pkt[report_pkt_offset - 4: report_pkt_offset - 2]),
-                        'major': returnnumberpacket(pkt[report_pkt_offset - 6: report_pkt_offset - 4])
+                        'major': returnnumberpacket(pkt[report_pkt_offset - 6: report_pkt_offset - 4]),
+                        'tx_power': returnnumberpacket(pkt[report_pkt_offset - 2: report_pkt_offset - 1]),
+                        'rssi': returnnumberpacket(pkt[-1:])
                     })
                 done = True
-    sock.setsockopt(bluez.SOL_HCI, bluez.HCI_FILTER, old_filter)
+    sock.setsockopt(bluez.SOL_HCI, bluez.HCI_FILTER, bytes(old_filter))
     return beacons
