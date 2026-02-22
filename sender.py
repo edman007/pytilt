@@ -4,44 +4,60 @@ import json
 from multiprocessing import Pool
 import time
 import os
+import paho.mqtt.client as mqtt
 
-def send(data, url, key):
-    return True
-    try:
-        headers = {'Content-type': 'application/json', 'Accept': 'text/plain', 'X-PYTILT-KEY': key}
-        r = requests.post(url, data=json.dumps(data), headers=headers)
-        return r.status_code == 200
-    except requests.exceptions.RequestException:
-        return False
+
 
 
 class Sender(object):
 
-    def __init__(self, batch_size=1):
+    def __init__(self, broker, topic, port=1883):
         self.queue = []
         self.sending = []
-        self.batch_size = batch_size
-        self.url = os.environ.get('PYTILT_URL', None)
-        self.key = os.environ.get('PYTILT_KEY', None)
+        self.broker = broker
+        self.topic = topic
+        self.port = port
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        status = self.client.connect(self.broker, self.port)
+        self.client.loop_start()
 
     def add_data(self, data):
         self.queue.append(data)
-        if len(self.queue) >= self.batch_size:
-            self.send()
+        self.send()
+
+    def sendMessage(self, data):
+        try:
+            if (not self.client.is_connected()):
+                print('Not Sending')
+                return False
+            result = self.client.publish(self.topic, json.dumps(data))
+            status = result[0]
+            if status != mqtt.MQTT_ERR_SUCCESS:
+                print(f"Failed to send message to topic {self.topic}, status code: {status}")
+            #else:
+            #    print(f"Sent to topic `{self.topic}`")
+
+            return status == mqtt.MQTT_ERR_SUCCESS
+        except Exception as e:
+            print(f"Failed to send message to broker: {e}")
+            return False
 
     def send(self):
-        pool = Pool(processes=1)
         self.sending = list(self.queue)
         self.queue = []
-        result = pool.apply_async(send, args=[self.sending, self.url, self.key], callback=self.completed)
-        pool.close()
-        pool.join()
+        for message in self.sending:
+            if (self.sendMessage(message)):
+                continue
+            else:
+                #add message back to queue
+                self.queue += message
+                try:
+                    self.client.disconnect()
+                    self.client.reconnect()
+                    self.client.loop_start()
+                except Exception as e:
+                    print(f"Failed to reconnect to broker: {e}")
+                #give up if we have an excessive number added back on
+                if len(self.queue) > 100:
+                    self.queue = []
 
-    def completed(self, was_sent):
-        if was_sent:
-            self.sending = []
-        else:
-            print ('send failed')
-            if len(self.queue) > 100:
-                self.queue = []
-            self.queue += self.sending

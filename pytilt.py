@@ -19,6 +19,8 @@ TILTS = {
         'a495bb80c5b14b44b5121370f02d74de': 'Pink',
 }
 
+MQTT_BROKER='localhost'
+MQTT_TOPIC='tilt'
 
 def distinct(objects):
     seen = set()
@@ -31,19 +33,21 @@ def distinct(objects):
 
 
 def monitor_tilt():
-    sender = Sender()
+    sender = Sender(MQTT_BROKER, MQTT_TOPIC)
     while True:
         beacons = distinct(blescan.parse_events(sock, 10))
         for beacon in beacons:
             if beacon['uuid'] in TILTS.keys():
-                print(beacon)
+                #print(beacon)
                 sender.add_data({
                     'color': TILTS[beacon['uuid']],
                     'timestamp': datetime.datetime.now().isoformat(),
                     'temp': beacon['major'],
-                    'gravity': beacon['minor']/1000
+                    'gravity': beacon['minor']/1000,
+                    'rssi': beacon['rssi'],
+                    'tx_power': beacon['tx_power']
                 })
-        time.sleep(1)
+        time.sleep(30)
 
 
 if __name__ == '__main__':

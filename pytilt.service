@@ -4,9 +4,10 @@ After=multi-user.target
 
 [Service]
 Type=idle
-Environment=PYTILT_URL=http://10.0.0.36:8080
-Environment=PYTILT_KEY=YOUR_KEY
-ExecStart=/usr/bin/python /home/atlefren/pytilt/pytilt.py > /home/atlefren/pytilt.log 2>&1
+User=edman007
+ExecStart=/usr/bin/python3 /home/edman007/tilt-hydrometer/pytilt/pytilt.py > /home/edman007/tilt-hydrometer/pytilt.log 2>&1
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
 
 [Install]
 WantedBy=multi-user.target
