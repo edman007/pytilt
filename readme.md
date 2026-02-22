@@ -1,26 +1,25 @@
 Pytilt
 ==========
-Tool for reading your Tilt brewing hydrometer[1] in python on a rasberry pi and send the data to a server.
+Tool for reading your Tilt brewing hydrometer[1] in python and exporting the data over MQTT as a json object
 
 
 Installation
 ------------
-0. git clone https://github.com/atlefren/pytilt.git
-1. Install python-bluez: ```sudo apt-get install python-bluez```
-2. Make the bluetooth interface accessible witout being root: ```sudo setcap cap_net_raw+eip /usr/bin/python2.7```
+1. git clone https://github.com/edman007/pytilt.git
+2. Install python3-bluez and mqtt: ```sudo apt-get install python3-bluez python3-paho-mqtt```
+3. Edit the MQTT config parameters in pytilt.py (if not localhost)
 
 Running
 -----------
-0. From the directory containing pytilt.py run `python pytilt.py`
+1. From the directory containing pytilt.py run `sudo python3 pytilt.py`
 
 Running Pytilt in the background and on System Start
 -----------
-0. edit pytilt.service, add your key and fix paths
-1. copy pytilt.service to /lib/systemd/system/
-2. sudo chmod 644 /lib/systemd/system/pytilt.service
-3. sudo systemctl daemon-reload
-4. sudo systemctl enable pytilt.service
-5. sudo reboot
+1. edit pytilt.service, correct the path to wherever you have the repo, and set a user (not root) that can access that path
+2. copy pytilt.service to /etc/systemd/system/
+3. sudo chmod 644 /etc/systemd/system/pytilt.service && sudo chown root:root /etc/systemd/system/pytilt.service
+4. sudo systemctl daemon-reload
+5. sudo systemctl enable pytilt.service
 
 
 Acknowledgements
